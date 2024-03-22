@@ -1,0 +1,8 @@
+# ninja log v5
+1	15	1711097634991261618	CMakeFiles/so_1.dir/verticalVehicles.cpp.o	e3b44da4fde1dfc
+2	257	1711098268638359361	CMakeFiles/so_1.dir/main.cpp.o	518b21bdd795ed66
+0	107	1711098575611860078	build.ninja	b45e5d0ebaff5a8
+425	536	1711092193680660403	so_1	2e21f0daf3332dbd
+2	24	1711097635003261676	CMakeFiles/so_1.dir/horizontalVehicles.cpp.o	966d05d4b7b89729
+2	21	1711097634999261657	CMakeFiles/so_1.dir/graphics.cpp.o	7f78a87deca2f3ba
+2	132	1711098580555884248	so_1	8792e3e1218e5e58
