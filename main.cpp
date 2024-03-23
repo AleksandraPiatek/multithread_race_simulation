@@ -1,30 +1,27 @@
 #include <iostream>
 #include <pthread.h>
 #include <GL/glut.h>
-#include <GL/gl.h>		// Header File For The OpenGL32 Library
-#include <GL/glu.h>
+#include <GL/gl.h>
+#include "graphics.h"
+#include "verticalVehicles.h"
 
-void displayMe(void)
-{
-    glClear(GL_COLOR_BUFFER_BIT);
-    glBegin(GL_POLYGON);
-    glVertex3f(0.5, 0.0, 0.5);
-    glVertex3f(0.5, 0.0, 0.0);
-    glVertex3f(0.0, 0.5, 0.0);
-    glVertex3f(0.0, 0.0, 0.5);
-    glEnd();
-    glFlush();
+graphics graphics;
+
+int argc1;
+char** argv1;
+void graphicsMain(){
+    graphics.initialize(argc1, argv1, graphics);
 }
 
 int main(int argc, char** argv)
 {
-    glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_SINGLE);
-    glutInitWindowSize(400, 300);
-    glutInitWindowPosition(100, 100);
-    glutCreateWindow("Hello world!");
-    glutDisplayFunc(displayMe);
-    glutMainLoop();
+    argc1=argc;
+    argv1=argv;
+    pthread_t graphics_thread;
+
+    verticalVehicles verticalVehicles;
+    graphicsMain();
+    //verticalVehicles.movingVehicle(0, graphics);
     return 0;
 }
 
