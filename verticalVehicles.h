@@ -11,7 +11,7 @@ class verticalVehicles {
     float path[3][4] = {{0.45, -0.75, -0.45, 0.75}, {0.4, -0.7, -0.4, 0.7}, {0.35, -0.65, -0.35, 0.65}};
 
 public:
-    void movingVehicle(int pathNumber, graphics graphics);
+    //void movingVehicle(int pathNumber, graphics graphics);
 };
 
 

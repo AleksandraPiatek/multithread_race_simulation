@@ -14,6 +14,9 @@ verticalVehicles verticalVehicles;
 typedef GLXContext (*glXCreateContextAttribsARBProc)(Display*, GLXFBConfig, GLXContext, Bool, const int*);
 
 void graphics::drawVehicle(int vehicleNumber, float oldX, float oldY, float x, float y) {
+
+    //glXMakeCurrent(display, win, ctx);
+    glXGetCurrentContext();
     if(oldX!=0 &oldY!=0) {
         glBegin(GL_QUADS);
         std::cout << "print";
@@ -140,7 +143,7 @@ void graphics::initialize(int argc, char **argv, graphics graphics) {
 //
 //    glutMainLoop();
 
-    Display *display = XOpenDisplay(0);
+     display = XOpenDisplay(0);
 
     glXCreateContextAttribsARBProc glXCreateContextAttribsARB = NULL;
 
@@ -177,7 +180,7 @@ void graphics::initialize(int argc, char **argv, graphics graphics) {
     swa.event_mask = StructureNotifyMask;
 
     std::cout << "Creating window" << std::endl;
-    Window win = XCreateWindow(display, RootWindow(display, vi->screen), 0, 0, 1680, 1200, 0, vi->depth, InputOutput, vi->visual, CWBorderPixel|CWColormap|CWEventMask, &swa);
+    win = XCreateWindow(display, RootWindow(display, vi->screen), 0, 0, 1680, 1200, 0, vi->depth, InputOutput, vi->visual, CWBorderPixel|CWColormap|CWEventMask, &swa);
     if (!win)
     {
         std::cout << "Failed to create window." << std::endl;
@@ -207,7 +210,7 @@ void graphics::initialize(int argc, char **argv, graphics graphics) {
             };
 
     std::cout << "Creating context" << std::endl;
-    GLXContext ctx = glXCreateContextAttribsARB(display, fbc[0], NULL, true, context_attribs);
+    ctx = glXCreateContextAttribsARB(display, fbc[0], NULL, true, context_attribs);
     if (!ctx)
     {
         std::cout << "Failed to create GL3 context." << std::endl;
@@ -221,8 +224,13 @@ void graphics::initialize(int argc, char **argv, graphics graphics) {
     //glClear (GL_COLOR_BUFFER_BIT);
     glXSwapBuffers (display, win);
 
+    glXMakeCurrent(display, win, ctx);
+    std::cout<<"moving";
+    movingVehicle(0);
+    glXSwapBuffers (display, win);
 
-    //sleep(10);
+
+    sleep(10);
 
 //    ctx = glXGetCurrentContext();
 //    glXMakeCurrent(display, 0, 0);
