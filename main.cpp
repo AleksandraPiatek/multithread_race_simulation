@@ -11,12 +11,7 @@ struct ThreadData {
 };
 
 // Global variables to hold data for each rectangle
-ThreadData threadData1;
-ThreadData threadData2;
-ThreadData threadData3;
-ThreadData threadData4;
-ThreadData threadData5;
-ThreadData threadData6;
+ThreadData threadData1, threadData2, threadData3, threadData4, threadData5, threadData6;
 
 bool stop = false;
 
@@ -24,7 +19,7 @@ int amountOfHorizontalThreadsActive = 0;
 bool vehicleSpawned[3] = {false, false, false};
 constexpr static const float speed = 0.01;
 float startingPoints[6] = {-0.47, 0.77, -0.4, 0.7, -0.37, 0.67}; // do poprawienia, startuja za nisko?
-float path[3][4] = {{0.45, -0.75, -0.45, 0.75}, {0.4, -0.7, -0.4, 0.7}, {0.37, -0.67, -0.37, 0.67}};
+float path[3][4] = {{0.47, -0.77, -0.45, 0.75}, {0.4, -0.7, -0.4, 0.7}, {0.37, -0.67, -0.37, 0.67}};
 float colors[6][3]={{0.0, 0.0, 0.0}, {1.0, 0.0, 1.0}, {1.0, 1.0, 1.0}, {0.0, 1.0, 1.0 },{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0} };
 
 // Mutex and condition variable for synchronization
@@ -198,27 +193,31 @@ void* updateVerticalVehicle(void * arg) {
 void* updateHorizontalVehicle(void * arg){
     ThreadData* threadData = reinterpret_cast<ThreadData*>(arg);
     amountOfHorizontalThreadsActive++;
-    float y = -startingPoints[2 * (threadData->vehicleNumber)], x = -startingPoints[2 * (threadData->vehicleNumber + 1) + 1];
-    for(int i = 0; i < 3; i++) {
+    float y = -startingPoints[2*(threadData->vehicleNumber)], x = -startingPoints[2*(threadData->vehicleNumber+1)+1];
+    for(int i=0; i<3; i++) {
         while (x < path[threadData->vehicleNumber][3] && !stop) {
+            // Move right
             x += speed;
             usleep(10000); // Sleep for 10 milliseconds
             threadData->objectPositionX = x;
             threadData->objectPositionY = y;
         }
         while (y > path[threadData->vehicleNumber][2] && !stop) {
+            // Move down
             y -= speed;
             usleep(10000); // Sleep for 10 milliseconds
             threadData->objectPositionX = x;
             threadData->objectPositionY = y;
         }
         while (x > path[threadData->vehicleNumber][1] && !stop) {
+            // Move left
             x -= speed;
             usleep(10000); // Sleep for 10 milliseconds
             threadData->objectPositionX = x;
             threadData->objectPositionY = y;
         }
         while (y < path[threadData->vehicleNumber][0] && !stop) {
+            // Move up
             y += speed;
             usleep(10000); // Sleep for 10 milliseconds
             threadData->objectPositionX = x;
@@ -227,8 +226,6 @@ void* updateHorizontalVehicle(void * arg){
     }
     amountOfHorizontalThreadsActive--;
 
-    // Signal the condition variable when a thread exits
-    pthread_cond_signal(&cond);
 }
 
 void* horizontalVehiclesHandler(){
@@ -344,10 +341,10 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-    if (pthread_create(&thread4, nullptr, reinterpret_cast<void *(*)(void *)>(updateHorizontalVehicle), reinterpret_cast<void*>(&threadData4)) != 0) {
-        std::cerr << "Error: Thread creation failed!" << std::endl;
-        return EXIT_FAILURE;
-    }
+//    if (pthread_create(&thread4, nullptr, reinterpret_cast<void *(*)(void *)>(updateHorizontalVehicle), reinterpret_cast<void*>(&threadData4)) != 0) {
+//        std::cerr << "Error: Thread creation failed!" << std::endl;
+//        return EXIT_FAILURE;
+//    }
 
     if (pthread_create(&thread5, nullptr, reinterpret_cast<void *(*)(void *)>(updateHorizontalVehicle), reinterpret_cast<void*>(&threadData5)) != 0) {
         std::cerr << "Error: Thread creation failed!" << std::endl;
@@ -359,10 +356,10 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-    if (pthread_create(&thread7, nullptr, reinterpret_cast<void *(*)(void *)>(horizontalVehiclesHandler), nullptr) != 0) {
-        std::cerr << "Error: Thread creation failed!" << std::endl;
-        return EXIT_FAILURE;
-    }
+//    if (pthread_create(&thread7, nullptr, reinterpret_cast<void *(*)(void *)>(horizontalVehiclesHandler), nullptr) != 0) {
+//        std::cerr << "Error: Thread creation failed!" << std::endl;
+//        return EXIT_FAILURE;
+//    }
 
     // Register the display function
     glutDisplayFunc(display);
@@ -374,10 +371,10 @@ int main(int argc, char** argv) {
     pthread_join(thread1, nullptr);
     pthread_join(thread2, nullptr);
     pthread_join(thread3, nullptr);
-    pthread_join(thread4, nullptr);
+    //pthread_join(thread4, nullptr);
     pthread_join(thread5, nullptr);
     pthread_join(thread6, nullptr);
-    pthread_join(thread7, nullptr);
+  //  pthread_join(thread7, nullptr);
 
     return 0;
 }
