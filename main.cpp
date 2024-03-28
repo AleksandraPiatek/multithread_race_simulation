@@ -21,13 +21,17 @@ ThreadData threadData6;
 bool stop = false;
 
 int amountOfHorizontalThreadsActive = 0;
-bool vehicleSpawned[3] = {true, true, true};
+bool vehicleSpawned[3] = {false, false, false};
 constexpr static const float speed = 0.01;
 float startingPoints[6] = {-0.47, 0.77, -0.4, 0.7, -0.37, 0.67}; // do poprawienia, startuja za nisko?
 float path[3][4] = {{0.45, -0.75, -0.45, 0.75}, {0.4, -0.7, -0.4, 0.7}, {0.37, -0.67, -0.37, 0.67}};
 float colors[6][3]={{0.0, 0.0, 0.0}, {1.0, 0.0, 1.0}, {1.0, 1.0, 1.0}, {0.0, 1.0, 1.0 },{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0} };
-// Function to draw a simple object
 
+// Mutex and condition variable for synchronization
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+
+// Function to draw a simple object
 void drawObject(float x, float y, int color) {
     glPushMatrix();
     glTranslatef(x, y, 0.0f);
@@ -53,6 +57,9 @@ void initOpenGL() {
 
 // Function to display the scene
 void display() {
+    // Lock the mutex before accessing shared data
+    pthread_mutex_lock(&mutex);
+
     float backgroundColor[3] = {1, 1, 0.924};
     float course1Color[3] = {0.8, 0.8, 1};
     float course2Color[3] = {0.6, 0.6, 1};
@@ -149,16 +156,18 @@ void display() {
     // Swap buffers to display the scene
     glutSwapBuffers();
 
+    // Unlock the mutex
+    pthread_mutex_unlock(&mutex);
+
     // Request a redraw
     glutPostRedisplay();
 }
 
-
 // Function to update object position for the vertical vehicle thread
 void* updateVerticalVehicle(void * arg) {
     ThreadData* threadData = reinterpret_cast<ThreadData*>(arg);
-    float x = startingPoints[2*(threadData->vehicleNumber)], y = startingPoints[2*(threadData->vehicleNumber+1)+1];
-    while(!stop) {
+    float x = startingPoints[2 * (threadData->vehicleNumber)], y = startingPoints[2 * (threadData->vehicleNumber + 1) + 1];
+    while (!stop){
         while (x < path[threadData->vehicleNumber][0] && !stop) {
             x += speed;
             usleep(10000); // Sleep for 10 milliseconds
@@ -189,8 +198,8 @@ void* updateVerticalVehicle(void * arg) {
 void* updateHorizontalVehicle(void * arg){
     ThreadData* threadData = reinterpret_cast<ThreadData*>(arg);
     amountOfHorizontalThreadsActive++;
-    float y = -startingPoints[2*(threadData->vehicleNumber)], x = -startingPoints[2*(threadData->vehicleNumber+1)+1];
-    for(int i=0; i<3; i++) {
+    float y = -startingPoints[2 * (threadData->vehicleNumber)], x = -startingPoints[2 * (threadData->vehicleNumber + 1) + 1];
+    for(int i = 0; i < 3; i++) {
         while (x < path[threadData->vehicleNumber][3] && !stop) {
             x += speed;
             usleep(10000); // Sleep for 10 milliseconds
@@ -217,10 +226,10 @@ void* updateHorizontalVehicle(void * arg){
         }
     }
     amountOfHorizontalThreadsActive--;
-}
 
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+    // Signal the condition variable when a thread exits
+    pthread_cond_signal(&cond);
+}
 
 void* horizontalVehiclesHandler(){
 
@@ -274,7 +283,6 @@ void* horizontalVehiclesHandler(){
     return nullptr;
 }
 
-
 void stopFunction(unsigned char key, int x, int y){
     if(key == ' '){
         stop=true;
@@ -318,48 +326,40 @@ int main(int argc, char** argv) {
     threadData6.objectPositionY = 0.0f;
     threadData6.vehicleNumber = 2;
 
+    // Create the threads for updating and drawing the objects
+    pthread_t thread1, thread2, thread3, thread4, thread5, thread6, thread7;
 
-
-
-    // Create the first thread for updating and drawing the first object
-    pthread_t thread1;
     if (pthread_create(&thread1, nullptr, reinterpret_cast<void *(*)(void *)>(updateVerticalVehicle), reinterpret_cast<void*>(&threadData1)) != 0) {
         std::cerr << "Error: Thread creation failed!" << std::endl;
         return EXIT_FAILURE;
     }
 
-    // Create the second thread for updating and drawing the second object
-    pthread_t thread2;
     if (pthread_create(&thread2, nullptr, reinterpret_cast<void *(*)(void *)>(updateVerticalVehicle), reinterpret_cast<void*>(&threadData2)) != 0) {
         std::cerr << "Error: Thread creation failed!" << std::endl;
         return EXIT_FAILURE;
     }
 
-    pthread_t thread3;
     if (pthread_create(&thread3, nullptr, reinterpret_cast<void *(*)(void *)>(updateVerticalVehicle), reinterpret_cast<void*>(&threadData3)) != 0) {
         std::cerr << "Error: Thread creation failed!" << std::endl;
         return EXIT_FAILURE;
     }
 
-    pthread_t thread4;
     if (pthread_create(&thread4, nullptr, reinterpret_cast<void *(*)(void *)>(updateHorizontalVehicle), reinterpret_cast<void*>(&threadData4)) != 0) {
         std::cerr << "Error: Thread creation failed!" << std::endl;
         return EXIT_FAILURE;
     }
 
-    pthread_t thread5;
     if (pthread_create(&thread5, nullptr, reinterpret_cast<void *(*)(void *)>(updateHorizontalVehicle), reinterpret_cast<void*>(&threadData5)) != 0) {
         std::cerr << "Error: Thread creation failed!" << std::endl;
         return EXIT_FAILURE;
     }
 
-    pthread_t thread6;
     if (pthread_create(&thread6, nullptr, reinterpret_cast<void *(*)(void *)>(updateHorizontalVehicle), reinterpret_cast<void*>(&threadData6)) != 0) {
         std::cerr << "Error: Thread creation failed!" << std::endl;
         return EXIT_FAILURE;
     }
-    pthread_t thread7;
-    if (pthread_create(&thread7, nullptr, reinterpret_cast<void *(*)(void *)>(horizontalVehiclesHandler()), nullptr)){
+
+    if (pthread_create(&thread7, nullptr, reinterpret_cast<void *(*)(void *)>(horizontalVehiclesHandler), nullptr) != 0) {
         std::cerr << "Error: Thread creation failed!" << std::endl;
         return EXIT_FAILURE;
     }
@@ -369,6 +369,15 @@ int main(int argc, char** argv) {
 
     // Enter GLUT event processing loop
     glutMainLoop();
+
+    // Wait for all threads to finish before exiting
+    pthread_join(thread1, nullptr);
+    pthread_join(thread2, nullptr);
+    pthread_join(thread3, nullptr);
+    pthread_join(thread4, nullptr);
+    pthread_join(thread5, nullptr);
+    pthread_join(thread6, nullptr);
+    pthread_join(thread7, nullptr);
 
     return 0;
 }
