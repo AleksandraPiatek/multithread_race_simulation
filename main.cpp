@@ -17,7 +17,7 @@ ThreadData threadData1, threadData2, threadData3, threadData4, threadData5, thre
 bool stop = false;
 
 int amountOfHorizontalThreadsActive = 0;
-bool vehicleSpawned[3] = {false, false, false};
+bool vehicleSpawned[3] = {true, true, true};
 constexpr static const float speed = 0.01;
 float startingPoints[6] = {-0.47, 0.77, -0.4, 0.7, -0.37, 0.67}; // do poprawienia, startuja za nisko?
 float path[3][4] = {{0.47, -0.77, -0.45, 0.75}, {0.4, -0.7, -0.4, 0.7}, {0.37, -0.67, -0.37, 0.67}};
@@ -163,7 +163,7 @@ void display() {
 // Function to update object position for the vertical vehicle thread
 void* updateVerticalVehicle(void * arg) {
     ThreadData* threadData = reinterpret_cast<ThreadData*>(arg);
-    float x = threadData->objectPositionX, y = threadData->objectPositionY;
+    float x = startingPoints[2*threadData->vehicleNumber], y = startingPoints[2*threadData->vehicleNumber+1];
     while (!stop) {
         // Lock the mutex before accessing shared data
         pthread_mutex_lock(&(threadData->mutex));
@@ -201,50 +201,55 @@ void* updateVerticalVehicle(void * arg) {
 
 void* updateHorizontalVehicle(void * arg){
     ThreadData* threadData = reinterpret_cast<ThreadData*>(arg);
-    float x = threadData->objectPositionX, y = threadData->objectPositionY;
-    while (!stop){
-        // Lock the mutex before accessing shared data
-        pthread_mutex_lock(&(threadData->mutex));
+    float y = -startingPoints[2*threadData->vehicleNumber], x = -startingPoints[2*threadData->vehicleNumber+1];
+    amountOfHorizontalThreadsActive++;
+    for(int i=0; i<3; i++) {
+        if (!stop) {
+            // Lock the mutex before accessing shared data
+            pthread_mutex_lock(&(threadData->mutex));
 
-        while (x < path2[threadData->vehicleNumber][3] && !stop) {
-            x += speed;
-            usleep(10000); // Sleep for 10 milliseconds
-            threadData->objectPositionX = x;
-            threadData->objectPositionY = y;
-        }
-        while (y > path2[threadData->vehicleNumber][2] && !stop) {
-            y -= speed;
-            usleep(10000); // Sleep for 10 milliseconds
-            threadData->objectPositionX = x;
-            threadData->objectPositionY = y;
-        }
-        while (x > path2[threadData->vehicleNumber][1] && !stop) {
-            x -= speed;
-            usleep(10000); // Sleep for 10 milliseconds
-            threadData->objectPositionX = x;
-            threadData->objectPositionY = y;
-        }
-        while (y < path2[threadData->vehicleNumber][0] && !stop) {
-            y += speed;
-            usleep(10000); // Sleep for 10 milliseconds
-            threadData->objectPositionX = x;
-            threadData->objectPositionY = y;
-        }
+            while (x < path2[threadData->vehicleNumber][3] && !stop) {
+                x += speed;
+                usleep(10000); // Sleep for 10 milliseconds
+                threadData->objectPositionX = x;
+                threadData->objectPositionY = y;
+            }
+            while (y > path2[threadData->vehicleNumber][2] && !stop) {
+                y -= speed;
+                usleep(10000); // Sleep for 10 milliseconds
+                threadData->objectPositionX = x;
+                threadData->objectPositionY = y;
+            }
+            while (x > path2[threadData->vehicleNumber][1] && !stop) {
+                x -= speed;
+                usleep(10000); // Sleep for 10 milliseconds
+                threadData->objectPositionX = x;
+                threadData->objectPositionY = y;
+            }
+            while (y < path2[threadData->vehicleNumber][0] && !stop) {
+                y += speed;
+                usleep(10000); // Sleep for 10 milliseconds
+                threadData->objectPositionX = x;
+                threadData->objectPositionY = y;
+            }
 
-        // Unlock the mutex
-        pthread_mutex_unlock(&(threadData->mutex));
+            // Unlock the mutex
+            pthread_mutex_unlock(&(threadData->mutex));
+        }
     }
+    amountOfHorizontalThreadsActive--;
+    vehicleSpawned[threadData->vehicleNumber] = false;
+    pthread_cond_signal(&cond);
     return nullptr;
 
 }
 
 void* horizontalVehiclesHandler(){
-
     while (!stop) {
         // Lock the mutex before accessing shared data
         pthread_mutex_lock(&mutex);
 
-        // Wait until the condition is signaled or timeout occurs
+        // Wait until there's an available slot for a new vehicle
         while (amountOfHorizontalThreadsActive >= 3 && !stop) {
             pthread_cond_wait(&cond, &mutex);
         }
@@ -278,9 +283,10 @@ void* horizontalVehiclesHandler(){
                 threadData = &threadData6;
             }
 
-            if (pthread_create(&thread, nullptr, reinterpret_cast<void*(*)(void*)>(updateHorizontalVehicle), reinterpret_cast<void*>(threadData)) != 0) {
+            if (pthread_create(&thread, nullptr, updateHorizontalVehicle, reinterpret_cast<void*>(threadData)) != 0) {
                 std::cerr << "Error: Thread creation failed!" << std::endl;
             }
+            std::cout << "New thread!" << std::endl;
         }
 
         // Unlock the mutex
@@ -339,7 +345,7 @@ int main(int argc, char** argv) {
     pthread_mutex_init(&(threadData6.mutex), nullptr);
 
     // Create the threads for updating and drawing the objects
-    pthread_t thread1, thread2, thread3, thread4, thread5, thread6;
+    pthread_t thread1, thread2, thread3, thread4, thread5, thread6, thread7;
 
     if (pthread_create(&thread1, nullptr, updateVerticalVehicle, reinterpret_cast<void*>(&threadData1)) != 0) {
         std::cerr << "Error: Thread creation failed!" << std::endl;
@@ -371,6 +377,11 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
+    if (pthread_create(&thread7, nullptr, reinterpret_cast<void *(*)(void *)>(horizontalVehiclesHandler), nullptr)) {
+        std::cerr << "Error: Thread creation failed!" << std::endl;
+        return EXIT_FAILURE;
+    }
+
     // Register the display function
     glutDisplayFunc(display);
 
@@ -384,6 +395,7 @@ int main(int argc, char** argv) {
     pthread_join(thread4, nullptr);
     pthread_join(thread5, nullptr);
     pthread_join(thread6, nullptr);
+    pthread_join(thread7, nullptr);
 
     // Destroy mutexes
     pthread_mutex_destroy(&(threadData1.mutex));
