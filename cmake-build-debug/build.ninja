@@ -56,27 +56,6 @@ build CMakeFiles/so_1.dir/main.cpp.o: CXX_COMPILER__so_1_unscanned_Debug /home/a
   OBJECT_DIR = CMakeFiles/so_1.dir
   OBJECT_FILE_DIR = CMakeFiles/so_1.dir
 
-build CMakeFiles/so_1.dir/verticalVehicles.cpp.o: CXX_COMPILER__so_1_unscanned_Debug /home/aleksandra/Desktop/so_1/verticalVehicles.cpp || cmake_object_order_depends_target_so_1
-  DEP_FILE = CMakeFiles/so_1.dir/verticalVehicles.cpp.o.d
-  FLAGS = -g -fdiagnostics-color=always
-  INCLUDES = -I/home/aleksandra/Desktop/so_1/glfw/include -I/home/aleksandra/Desktop/so_1/GL
-  OBJECT_DIR = CMakeFiles/so_1.dir
-  OBJECT_FILE_DIR = CMakeFiles/so_1.dir
-
-build CMakeFiles/so_1.dir/horizontalVehicles.cpp.o: CXX_COMPILER__so_1_unscanned_Debug /home/aleksandra/Desktop/so_1/horizontalVehicles.cpp || cmake_object_order_depends_target_so_1
-  DEP_FILE = CMakeFiles/so_1.dir/horizontalVehicles.cpp.o.d
-  FLAGS = -g -fdiagnostics-color=always
-  INCLUDES = -I/home/aleksandra/Desktop/so_1/glfw/include -I/home/aleksandra/Desktop/so_1/GL
-  OBJECT_DIR = CMakeFiles/so_1.dir
-  OBJECT_FILE_DIR = CMakeFiles/so_1.dir
-
-build CMakeFiles/so_1.dir/graphics.cpp.o: CXX_COMPILER__so_1_unscanned_Debug /home/aleksandra/Desktop/so_1/graphics.cpp || cmake_object_order_depends_target_so_1
-  DEP_FILE = CMakeFiles/so_1.dir/graphics.cpp.o.d
-  FLAGS = -g -fdiagnostics-color=always
-  INCLUDES = -I/home/aleksandra/Desktop/so_1/glfw/include -I/home/aleksandra/Desktop/so_1/GL
-  OBJECT_DIR = CMakeFiles/so_1.dir
-  OBJECT_FILE_DIR = CMakeFiles/so_1.dir
-
 
 # =============================================================================
 # Link build statements for EXECUTABLE target so_1
@@ -85,7 +64,7 @@ build CMakeFiles/so_1.dir/graphics.cpp.o: CXX_COMPILER__so_1_unscanned_Debug /ho
 #############################################
 # Link the executable so_1
 
-build so_1: CXX_EXECUTABLE_LINKER__so_1_Debug CMakeFiles/so_1.dir/main.cpp.o CMakeFiles/so_1.dir/verticalVehicles.cpp.o CMakeFiles/so_1.dir/horizontalVehicles.cpp.o CMakeFiles/so_1.dir/graphics.cpp.o
+build so_1: CXX_EXECUTABLE_LINKER__so_1_Debug CMakeFiles/so_1.dir/main.cpp.o
   FLAGS = -g
   LINK_LIBRARIES = -lGL  -lGLU  -lglut  -lglfw3  -lX11  -lXxf86vm  -lXrandr  -lpthread  -lXi  -ldl  -lXinerama  -lXcursor  -lassimp
   OBJECT_DIR = CMakeFiles/so_1.dir
