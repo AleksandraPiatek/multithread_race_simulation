@@ -4,6 +4,7 @@
 #include <iostream>
 #include <bits/stdc++.h>
 
+
 // Structure to hold data needed by each drawing thread
 struct ThreadData {
     double objectPositionX;
@@ -20,8 +21,7 @@ bool stop = false;
 
 int amountOfHorizontalThreadsActive = 0;
 bool vehicleSpawned[3] = {true, true, true};
-//constexpr static const float speed = 0.01;
-float startingPoints[6] = {-0.47, 0.77, -0.4, 0.7, -0.37, 0.67}; // do poprawienia, startuja za nisko?
+float startingPoints[6] = {-0.47, 0.77, -0.4, 0.7, -0.37, 0.67};
 float path[3][4] = {{0.47, -0.77, -0.45, 0.75}, {0.4, -0.7, -0.4, 0.7}, {0.37, -0.67, -0.37, 0.67}};
 float path2[3][4] = {{0.47, -0.77, -0.45, 0.75}, {0.4, -0.7, -0.4, 0.7}, {0.37, -0.67, -0.37, 0.67}};
 float colors[6][3]={{0.0, 0.0, 0.0}, {1.0, 0.0, 1.0}, {1.0, 1.0, 1.0}, {0.0, 1.0, 1.0 },{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0} };
@@ -31,6 +31,8 @@ pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 
 std::default_random_engine gen;
+//std::default_random_engine gen2;
+//std::default_random_engine gen3;
 std::uniform_real_distribution<double> distribution(0.0001,0.04);
 
 // Function to draw a simple object
@@ -92,7 +94,6 @@ void display() {
     glVertex2f(-1, -0.3);
     glVertex2f(-0.8, -0.3);
     glEnd();
-
 
     glBegin(GL_QUADS);
     glColor3f(course2Color[0], course2Color[1], course2Color[2]);
@@ -185,32 +186,32 @@ void display() {
 // Function to update object position for the vertical vehicle thread
 void* updateVerticalVehicle(void * arg) {
     auto* threadData = reinterpret_cast<ThreadData*>(arg);
-    double x = startingPoints[2*threadData->vehicleNumber], y = startingPoints[2*threadData->vehicleNumber+1];
+    double x = threadData->objectPositionX, y = threadData->objectPositionY;
     while (!stop) {
         // Lock the mutex before accessing shared data
         pthread_mutex_lock(&(threadData->mutex));
 
-        while (x < path[threadData->vehicleNumber][0] && !stop) {
+        while (x < path[threadData->vehicleNumber][0] && y> 0.65 && !stop) {
             x += threadData->speed;
-            usleep(10000); // Sleep for 10 milliseconds
+            usleep(10000);
             threadData->objectPositionX = x;
             threadData->objectPositionY = y;
         }
-        while (y > path[threadData->vehicleNumber][1] && !stop) {
+        while (y > path[threadData->vehicleNumber][1] && x>0.35 && !stop) {
             y -= threadData->speed;
-            usleep(10000); // Sleep for 10 milliseconds
+            usleep(10000);
             threadData->objectPositionX = x;
             threadData->objectPositionY = y;
         }
-        while (x > path[threadData->vehicleNumber][2] && !stop) {
+        while (x > path[threadData->vehicleNumber][2] && y < -0.65 && !stop) {
             x -= threadData->speed;
-            usleep(10000); // Sleep for 10 milliseconds
+            usleep(10000);
             threadData->objectPositionX = x;
             threadData->objectPositionY = y;
         }
-        while (y < path[threadData->vehicleNumber][3] && !stop) {
+        while (y < path[threadData->vehicleNumber][3] && x<-0.35 && !stop) {
             y += threadData->speed;
-            usleep(10000); // Sleep for 10 milliseconds
+            usleep(10000);
             threadData->objectPositionX = x;
             threadData->objectPositionY = y;
         }
@@ -222,14 +223,18 @@ void* updateVerticalVehicle(void * arg) {
 }
 
 void* updateHorizontalVehicle(void * arg){
+    std::uniform_int_distribution<int> distribution1(10000, 1500000);
+    usleep(distribution1(gen));
     auto* threadData = reinterpret_cast<ThreadData*>(arg);
     double y = -startingPoints[2*threadData->vehicleNumber], x = -1;
     amountOfHorizontalThreadsActive++;
-    while(x < -startingPoints[2*threadData->vehicleNumber+1]){
-        x += threadData->speed;
-        usleep(10000); // Sleep for 10 milliseconds
-        threadData->objectPositionX = x;
-        threadData->objectPositionY = y;
+    if(!stop) {
+        while (x < -startingPoints[2 * threadData->vehicleNumber + 1]) {
+            x += threadData->speed;
+            usleep(10000); // Sleep for 10 milliseconds
+            threadData->objectPositionX = x;
+            threadData->objectPositionY = y;
+        }
     }
     for(int i=0; i<3; i++) {
         if (!stop) {
@@ -263,39 +268,38 @@ void* updateHorizontalVehicle(void * arg){
                 }
             }
             // Unlock the mutex
+
             pthread_mutex_unlock(&(threadData->mutex));
         }
     }
-    while(x >= -1){
-        x -= threadData->speed;
-        usleep(10000); // Sleep for 10 milliseconds
-        threadData->objectPositionX = x;
-        threadData->objectPositionY = y;
+    if(!stop) {
+        while (x >= -1) {
+            x -= threadData->speed;
+            usleep(10000); // Sleep for 10 milliseconds
+            threadData->objectPositionX = x;
+            threadData->objectPositionY = y;
+        }
     }
     amountOfHorizontalThreadsActive--;
     vehicleSpawned[threadData->vehicleNumber] = false;
-    pthread_cond_signal(&cond);
+    pthread_cond_broadcast(&cond);
     return nullptr;
 
 }
 
 void* horizontalVehiclesHandler(){
-    //jak odwola sie jeden watek gdy drugi juz zajmuje to jak zapewnic zeby sie wykonaly dla obydwu?
     while (!stop) {
         // Lock the mutex before accessing shared data
         pthread_mutex_lock(&mutex);
 
         // Wait until there's an available slot for a new vehicle
-       // while (amountOfHorizontalThreadsActive >= 3 && !stop) {
             pthread_cond_wait(&cond, &mutex);
-        //}
 
         // Check if the program is still running
         if (stop) {
             pthread_mutex_unlock(&mutex);
             break;
         }
-
         // Find an available slot for a new vehicle
         int index = -1;
         for (int i = 0; i < 3; ++i) {
@@ -304,7 +308,6 @@ void* horizontalVehiclesHandler(){
                 break;
             }
         }
-
         if (index != -1) {
             vehicleSpawned[index] = true; // Mark vehicle as spawned
             pthread_t thread;
@@ -334,10 +337,30 @@ void* horizontalVehiclesHandler(){
     return nullptr;
 }
 
-void stopFunction(unsigned char key, int x, int y){
+void stopFunction(unsigned char key){
     if(key == ' '){
         stop=true;
     }
+}
+
+void startingPointRandomizer(ThreadData &threadData){
+    std::uniform_real_distribution<double> distribution2(-0.5, 0.5);
+    double x = distribution2(gen);
+    double y;
+    if(x>0.35 || x<-0.35){
+        std::uniform_real_distribution<double> distribution3(-0.8, 0.8);
+        y = distribution3(gen);
+    }
+    else{
+        std::uniform_real_distribution<double> distribution3(0.65, 0.8);
+        y = distribution3(gen);
+    }
+
+    threadData.objectPositionX = x;
+    threadData.objectPositionY = y;
+    std::cout << threadData.vehicleNumber << " " << threadData.objectPositionX << " " << threadData.objectPositionY << std::endl;
+
+
 }
 
 int main(int argc, char** argv) {
@@ -347,26 +370,23 @@ int main(int argc, char** argv) {
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
     glutInitWindowSize(800, 600);
     glutCreateWindow("OpenGL Thread Example");
-    glutKeyboardFunc(stopFunction);
+    glutKeyboardFunc(reinterpret_cast<void (*)(unsigned char, int, int)>(stopFunction));
 
     // Initialize OpenGL
     initOpenGL();
 
     // Initialize data for the objects
-    threadData1.objectPositionX = 0.0f;
-    threadData1.objectPositionY = 0.0f;
+    startingPointRandomizer(threadData1);
     threadData1.vehicleNumber = 0;
     threadData1.speed=0.01;
     pthread_mutex_init(&(threadData1.mutex), nullptr);
 
-    threadData2.objectPositionX = 0.0f;
-    threadData2.objectPositionY = 0.0f;
+    startingPointRandomizer(threadData2);
     threadData2.vehicleNumber = 1;
     threadData2.speed=0.01;
     pthread_mutex_init(&(threadData2.mutex), nullptr);
 
-    threadData3.objectPositionX = 0.0f;
-    threadData3.objectPositionY = 0.0f;
+    startingPointRandomizer(threadData3);
     threadData3.vehicleNumber = 2;
     threadData3.speed=0.01;
     pthread_mutex_init(&(threadData3.mutex), nullptr);
