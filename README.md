@@ -1,1 +1,1 @@
-Multithread project, using <pthreads> and OpenGL
+Multithread project using pthreads and OpenGL
