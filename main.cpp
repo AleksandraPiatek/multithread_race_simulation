@@ -10,7 +10,6 @@ struct ThreadData {
     double objectPositionY;
     int vehicleNumber;
     double speed;
-    pthread_mutex_t mutex; // Mutex for synchronizing access to thread data
 };
 
 // Global variables to hold data for each rectangle
@@ -148,8 +147,6 @@ void* updateVerticalVehicle(void * arg) {
     auto* threadData = reinterpret_cast<ThreadData*>(arg);
     double x = threadData->objectPositionX, y = threadData->objectPositionY;
     while (!stop) {
-        // Lock the mutex before accessing shared data
-        pthread_mutex_lock(&(threadData->mutex));
         while (x < path[threadData->vehicleNumber][0] && y> 0.65 && !stop) {
             x += threadData->speed;
             usleep(10000);
@@ -174,8 +171,6 @@ void* updateVerticalVehicle(void * arg) {
             threadData->objectPositionX = x;
             threadData->objectPositionY = y;
         }
-        // Unlock the mutex
-        pthread_mutex_unlock(&(threadData->mutex));
     }
     return nullptr;
 }
@@ -196,8 +191,6 @@ void* updateHorizontalVehicle(void * arg){
     }
     for(int i=0; i<3; i++) {
         if (!stop) {
-            // Lock the mutex before accessing shared data
-            pthread_mutex_lock(&(threadData->mutex));
 
             while (x < path[threadData->vehicleNumber][3] && !stop) {
                 x += threadData->speed;
@@ -227,7 +220,6 @@ void* updateHorizontalVehicle(void * arg){
             }
             // Unlock the mutex
 
-            pthread_mutex_unlock(&(threadData->mutex));
         }
     }
     if(!stop) {
@@ -278,11 +270,9 @@ void* horizontalVehiclesHandler(){
             }
 
             threadData->speed= distribution(gen);
-            std::cout << threadData->speed << std::endl;
             if (pthread_create(&thread, nullptr, updateHorizontalVehicle, reinterpret_cast<void*>(threadData)) != 0) {
                 std::cerr << "Error: Thread creation failed!" << std::endl;
             }
-            std::cout << "New thread!" << std::endl;
         }
 
         // Unlock the mutex
@@ -332,29 +322,24 @@ int main(int argc, char** argv) {
     startingPointRandomizer(threadData1);
     threadData1.vehicleNumber = 0;
     threadData1.speed=0.01;
-    pthread_mutex_init(&(threadData1.mutex), nullptr);
 
     startingPointRandomizer(threadData2);
     threadData2.vehicleNumber = 1;
     threadData2.speed=0.01;
-    pthread_mutex_init(&(threadData2.mutex), nullptr);
 
     startingPointRandomizer(threadData3);
     threadData3.vehicleNumber = 2;
     threadData3.speed=0.01;
-    pthread_mutex_init(&(threadData3.mutex), nullptr);
 
     threadData4.vehicleNumber = 0;
     threadData4.speed=distribution(gen);
-    pthread_mutex_init(&(threadData4.mutex), nullptr);
 
     threadData5.vehicleNumber = 1;
     threadData5.speed= distribution(gen);
-    pthread_mutex_init(&(threadData5.mutex), nullptr);
+
 
     threadData6.vehicleNumber = 2;
     threadData6.speed=distribution(gen);
-    pthread_mutex_init(&(threadData6.mutex), nullptr);
 
     // Create the threads for updating and drawing the objects
     pthread_t thread1, thread2, thread3, thread4, thread5, thread6, thread7;
@@ -382,13 +367,6 @@ int main(int argc, char** argv) {
     pthread_join(thread6, nullptr);
     pthread_join(thread7, nullptr);
 
-    // Destroy mutexes
-    pthread_mutex_destroy(&(threadData1.mutex));
-    pthread_mutex_destroy(&(threadData2.mutex));
-    pthread_mutex_destroy(&(threadData3.mutex));
-    pthread_mutex_destroy(&(threadData4.mutex));
-    pthread_mutex_destroy(&(threadData5.mutex));
-    pthread_mutex_destroy(&(threadData6.mutex));
 
     return 0;
 }
