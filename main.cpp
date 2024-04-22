@@ -1,8 +1,11 @@
 #include <GL/glut.h>
-#include <pthread.h>
-#include <unistd.h>
+#include <thread>
+#include <vector>
 #include <iostream>
-#include <bits/stdc++.h>
+#include <random>
+#include <GL/freeglut.h>
+#include <csignal>
+#include <algorithm>
 
 // Structure to hold data needed by each drawing thread
 struct ThreadData {
@@ -12,22 +15,21 @@ struct ThreadData {
     double speed;
 };
 
-// Global variables to hold data for each rectangle
+// Global variables to hold data for each vehicle
 ThreadData threadData1, threadData2, threadData3, threadData4, threadData5, threadData6;
 
 bool stop = false;
+bool windowClosed = false;
 int amountOfHorizontalThreadsActive = 0;
 bool vehicleSpawned[3] = {true, true, true};
 float startingPoints[6] = {-0.47, 0.77, -0.4, 0.7, -0.37, 0.67};
 float path[3][4] = {{0.47, -0.77, -0.45, 0.75}, {0.4, -0.7, -0.4, 0.7}, {0.37, -0.67, -0.37, 0.67}};
 float colors[3][3]={{0.0, 0.0, 0.0}, {1.0, 0.0, 1.0}, {1.0, 1.0, 1.0}};
 
-// Mutex and condition variable for synchronization
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
-
 std::default_random_engine gen;
 std::uniform_real_distribution<double> distribution(0.0001,0.04);
+
+std::vector<std::thread> activeThreads;
 
 void drawVehicle(double x, double y, int color) {
     glPushMatrix();
@@ -52,9 +54,6 @@ void initOpenGL() {
 }
 
 void displayScene() {
-    // Lock the mutex before accessing shared data
-    pthread_mutex_lock(&mutex);
-
     float backgroundColor[3] = {1, 1, 0.924};
     float course1Color[3] = {0.8, 0.8, 1};
     float course2Color[3] = {0.6, 0.6, 1};
@@ -68,7 +67,6 @@ void displayScene() {
     glVertex2f(0.8, 0.5);
     glVertex2f(0.8, -0.5);
     glVertex2f(-0.8, -0.5);
-
 
     glColor3f(course1Color[0]-0.1, course1Color[1]-0.1, course1Color[2]);
     glVertex2f(-0.8, 0.5);
@@ -132,122 +130,114 @@ void displayScene() {
     drawVehicle(threadData5.objectPositionX, threadData5.objectPositionY, threadData5.vehicleNumber);
     drawVehicle(threadData6.objectPositionX, threadData6.objectPositionY, threadData6.vehicleNumber);
 
-    // Swap buffers to displayScene the scene
     glutSwapBuffers();
-
-    // Unlock the mutex
-    pthread_mutex_unlock(&mutex);
-
-    // Request a redraw
     glutPostRedisplay();
 }
 
-// Function to update object position for the vertical vehicle thread
-void* updateVerticalVehicle(void * arg) {
-    auto* threadData = reinterpret_cast<ThreadData*>(arg);
+void updateVerticalVehicle(ThreadData* threadData) {
     double x = threadData->objectPositionX, y = threadData->objectPositionY;
-    while (!stop) {
-        while (x < path[threadData->vehicleNumber][0] && y> 0.65 && !stop) {
+    while (!stop && !windowClosed) {
+        while (x < path[threadData->vehicleNumber][0] && y > 0.65 && !stop && !windowClosed) {
             x += threadData->speed;
             usleep(10000);
             threadData->objectPositionX = x;
             threadData->objectPositionY = y;
         }
-        while (y > path[threadData->vehicleNumber][1] && x>0.35 && !stop) {
+        while (y > path[threadData->vehicleNumber][1] && x > 0.35 && !stop && !windowClosed) {
             y -= threadData->speed;
             usleep(10000);
             threadData->objectPositionX = x;
             threadData->objectPositionY = y;
         }
-        while (x > path[threadData->vehicleNumber][2] && y < -0.65 && !stop) {
+        while (x > path[threadData->vehicleNumber][2] && y < -0.65 && !stop && !windowClosed) {
             x -= threadData->speed;
             usleep(10000);
             threadData->objectPositionX = x;
             threadData->objectPositionY = y;
         }
-        while (y < path[threadData->vehicleNumber][3] && x<-0.35 && !stop) {
+        while (y < path[threadData->vehicleNumber][3] && x < -0.35 && !stop && !windowClosed) {
             y += threadData->speed;
             usleep(10000);
             threadData->objectPositionX = x;
             threadData->objectPositionY = y;
         }
     }
-    return nullptr;
 }
 
-void* updateHorizontalVehicle(void * arg){
+void updateHorizontalVehicle(ThreadData* threadData) {
     std::uniform_int_distribution<int> distribution1(10000, 1500000);
     usleep(distribution1(gen));
-    auto* threadData = reinterpret_cast<ThreadData*>(arg);
-    double y = -startingPoints[2*threadData->vehicleNumber], x = -1;
+    double y = -startingPoints[2 * threadData->vehicleNumber], x = -1;
     amountOfHorizontalThreadsActive++;
-    if(!stop) {
+    if (!stop && !windowClosed) {
         while (x < -startingPoints[2 * threadData->vehicleNumber + 1]) {
             x += threadData->speed;
-            usleep(10000); // Sleep for 10 milliseconds
+            usleep(10000);
             threadData->objectPositionX = x;
             threadData->objectPositionY = y;
         }
     }
-    for(int i=0; i<3; i++) {
-        if (!stop) {
-
-            while (x < path[threadData->vehicleNumber][3] && !stop) {
+    for (int i = 0; i < 3; i++) {
+        if (!stop && !windowClosed) {
+            while (x < path[threadData->vehicleNumber][3] && !stop && !windowClosed) {
                 x += threadData->speed;
-                usleep(10000); // Sleep for 10 milliseconds
+                usleep(10000);
                 threadData->objectPositionX = x;
                 threadData->objectPositionY = y;
             }
-            while (y > path[threadData->vehicleNumber][2] && !stop) {
+            while (y > path[threadData->vehicleNumber][2] && !stop && !windowClosed) {
                 y -= threadData->speed;
-                usleep(10000); // Sleep for 10 milliseconds
+                usleep(10000);
                 threadData->objectPositionX = x;
                 threadData->objectPositionY = y;
             }
-            while (x > path[threadData->vehicleNumber][1] && !stop) {
+            while (x > path[threadData->vehicleNumber][1] && !stop && !windowClosed) {
                 x -= threadData->speed;
-                usleep(10000); // Sleep for 10 milliseconds
+                usleep(10000);
                 threadData->objectPositionX = x;
                 threadData->objectPositionY = y;
             }
-            if(i !=2) {
-                while (y < path[threadData->vehicleNumber][0] && !stop) {
+            if (i != 2) {
+                while (y < path[threadData->vehicleNumber][0] && !stop && !windowClosed) {
                     y += threadData->speed;
-                    usleep(10000); // Sleep for 10 milliseconds
+                    usleep(10000);
                     threadData->objectPositionX = x;
                     threadData->objectPositionY = y;
                 }
             }
-            // Unlock the mutex
-
         }
     }
-    if(!stop) {
+    if (!stop && !windowClosed) {
         while (x >= -1) {
             x -= threadData->speed;
-            usleep(10000); // Sleep for 10 milliseconds
+            usleep(10000);
             threadData->objectPositionX = x;
             threadData->objectPositionY = y;
         }
     }
     amountOfHorizontalThreadsActive--;
-    vehicleSpawned[threadData->vehicleNumber] = false;
-    pthread_cond_broadcast(&cond);
-    return nullptr;
 
+    // Remove this thread from activeThreads vector
+    auto it = std::find_if(activeThreads.begin(), activeThreads.end(),
+                           [&](std::thread& t) { return t.get_id() == std::this_thread::get_id(); });
+    if (it != activeThreads.end()) {
+        it->detach(); // Detach before erasing
+        activeThreads.erase(it);
+    }
+    vehicleSpawned[threadData->vehicleNumber] = false;
 }
 
-void* horizontalVehiclesHandler(){
-    while (!stop) {
-        pthread_mutex_lock(&mutex);
-        if(amountOfHorizontalThreadsActive==3) pthread_cond_wait(&cond, &mutex);
+void horizontalVehiclesHandler() {
+    while (!stop && !windowClosed) {
+        if (amountOfHorizontalThreadsActive == 3) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            continue;
+        }
 
-        // Check if the program is still running
-        if (stop) {
-            pthread_mutex_unlock(&mutex);
+        if (stop || windowClosed) {
             break;
         }
-        // Find an available slot for a new vehicle
+
         int index = -1;
         for (int i = 0; i < 3; ++i) {
             if (!vehicleSpawned[i]) {
@@ -256,11 +246,9 @@ void* horizontalVehiclesHandler(){
             }
         }
         if (index != -1) {
-            vehicleSpawned[index] = true; // Mark vehicle as spawned
-            pthread_t thread;
+            vehicleSpawned[index] = true;
             ThreadData* threadData = nullptr;
 
-            // Assign threadData based on index
             if (index == 0) {
                 threadData = &threadData4;
             } else if (index == 1) {
@@ -269,34 +257,43 @@ void* horizontalVehiclesHandler(){
                 threadData = &threadData6;
             }
 
-            threadData->speed= distribution(gen);
-            if (pthread_create(&thread, nullptr, updateHorizontalVehicle, reinterpret_cast<void*>(threadData)) != 0) {
-                std::cerr << "Error: Thread creation failed!" << std::endl;
+            threadData->speed = distribution(gen);
+            std::thread horizontal_thread(updateHorizontalVehicle, threadData);
+            activeThreads.push_back(std::move(horizontal_thread));
+        }
+    }
+}
+
+void stopFunction(unsigned char key, int x, int y) {
+    if (key == ' ') {
+        stop = true;
+        // Join all active threads
+        for (auto& thread : activeThreads) {
+            if (thread.joinable()) {
+                thread.join();
             }
         }
-
-        // Unlock the mutex
-        pthread_mutex_unlock(&mutex);
-    }
-
-    return nullptr;
-}
-
-void stopFunction(unsigned char key){
-    if(key == ' '){
-        stop=true;
     }
 }
 
-void startingPointRandomizer(ThreadData &threadData){
+void closeWindowFunction() {
+    windowClosed = true;
+    // Join all active threads
+    for (auto& thread : activeThreads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+}
+
+void startingPointRandomizer(ThreadData& threadData) {
     std::uniform_real_distribution<double> distribution2(-0.5, 0.5);
     double x = distribution2(gen);
     double y;
-    if(x>0.35 || x<-0.35){
+    if (x > 0.35 || x < -0.35) {
         std::uniform_real_distribution<double> distribution3(-0.8, 0.8);
         y = distribution3(gen);
-    }
-    else{
+    } else {
         std::uniform_real_distribution<double> distribution3(0.65, 0.8);
         y = distribution3(gen);
     }
@@ -304,69 +301,58 @@ void startingPointRandomizer(ThreadData &threadData){
     threadData.objectPositionX = x;
     threadData.objectPositionY = y;
     std::cout << threadData.vehicleNumber << " " << threadData.objectPositionX << " " << threadData.objectPositionY << std::endl;
-
-
 }
 
 int main(int argc, char** argv) {
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
     glutInitWindowSize(800, 600);
-    glutCreateWindow("OpenGL Thread Example");
-    glutKeyboardFunc(reinterpret_cast<void (*)(unsigned char, int, int)>(stopFunction));
+    glutCreateWindow("");
+    glutKeyboardFunc(stopFunction);
+    glutCloseFunc(closeWindowFunction);
 
-    // Initialize OpenGL
     initOpenGL();
 
-    // Initialize data for the objects
     startingPointRandomizer(threadData1);
     threadData1.vehicleNumber = 0;
-    threadData1.speed=0.01;
+    threadData1.speed = 0.01;
 
     startingPointRandomizer(threadData2);
     threadData2.vehicleNumber = 1;
-    threadData2.speed=0.01;
+    threadData2.speed = 0.01;
 
     startingPointRandomizer(threadData3);
     threadData3.vehicleNumber = 2;
-    threadData3.speed=0.01;
+    threadData3.speed = 0.01;
 
     threadData4.vehicleNumber = 0;
-    threadData4.speed=distribution(gen);
+    threadData4.speed = distribution(gen);
 
     threadData5.vehicleNumber = 1;
-    threadData5.speed= distribution(gen);
-
+    threadData5.speed = distribution(gen);
 
     threadData6.vehicleNumber = 2;
-    threadData6.speed=distribution(gen);
+    threadData6.speed = distribution(gen);
 
-    // Create the threads for updating and drawing the objects
-    pthread_t thread1, thread2, thread3, thread4, thread5, thread6, thread7;
+    std::thread thread1(updateVerticalVehicle, &threadData1);
+    std::thread thread2(updateVerticalVehicle, &threadData2);
+    std::thread thread3(updateVerticalVehicle, &threadData3);
+    std::thread thread4(horizontalVehiclesHandler);
+    std::thread thread5(updateHorizontalVehicle, &threadData4);
+    std::thread thread6(updateHorizontalVehicle, &threadData5);
+    std::thread thread7(updateHorizontalVehicle, &threadData6);
 
-    pthread_create(&thread1, nullptr, updateVerticalVehicle, reinterpret_cast<void*>(&threadData1));
-    pthread_create(&thread2, nullptr, updateVerticalVehicle, reinterpret_cast<void*>(&threadData2));
-    pthread_create(&thread3, nullptr, updateVerticalVehicle, reinterpret_cast<void*>(&threadData3));
-    pthread_create(&thread4, nullptr, updateHorizontalVehicle, reinterpret_cast<void*>(&threadData4));
-    pthread_create(&thread5, nullptr, updateHorizontalVehicle, reinterpret_cast<void*>(&threadData5));
-    pthread_create(&thread6, nullptr, updateHorizontalVehicle, reinterpret_cast<void*>(&threadData6));
-    pthread_create(&thread7, nullptr, reinterpret_cast<void *(*)(void *)>(horizontalVehiclesHandler), nullptr);
+    activeThreads.push_back(std::move(thread1));
+    activeThreads.push_back(std::move(thread2));
+    activeThreads.push_back(std::move(thread3));
+    activeThreads.push_back(std::move(thread4));
+    activeThreads.push_back(std::move(thread5));
+    activeThreads.push_back(std::move(thread6));
+    activeThreads.push_back(std::move(thread7));
 
-    // Register the displayScene function
     glutDisplayFunc(displayScene);
 
-    // Enter GLUT event processing loop
     glutMainLoop();
-
-    // Wait for all threads to finish before exiting
-    pthread_join(thread1, nullptr);
-    pthread_join(thread2, nullptr);
-    pthread_join(thread3, nullptr);
-    pthread_join(thread4, nullptr);
-    pthread_join(thread5, nullptr);
-    pthread_join(thread6, nullptr);
-    pthread_join(thread7, nullptr);
-
 
     return 0;
 }
