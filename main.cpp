@@ -6,8 +6,8 @@
 #include <GL/freeglut.h>
 #include <csignal>
 #include <algorithm>
+#include <memory> // For smart pointers
 
-// Structure to hold data needed by each drawing thread
 struct ThreadData {
     double objectPositionX;
     double objectPositionY;
@@ -15,21 +15,19 @@ struct ThreadData {
     double speed;
 };
 
-// Global variables to hold data for each vehicle
-ThreadData threadData1, threadData2, threadData3, threadData4, threadData5, threadData6;
-
+ThreadData threadData1, threadData2, threadData3;
 bool stop = false;
 bool windowClosed = false;
-int amountOfHorizontalThreadsActive = 0;
 bool vehicleSpawned[3] = {true, true, true};
 float startingPoints[6] = {-0.47, 0.77, -0.4, 0.7, -0.37, 0.67};
 float path[3][4] = {{0.47, -0.77, -0.45, 0.75}, {0.4, -0.7, -0.4, 0.7}, {0.37, -0.67, -0.37, 0.67}};
-float colors[3][3]={{0.0, 0.0, 0.0}, {1.0, 0.0, 1.0}, {1.0, 1.0, 1.0}};
+float colors[20][3] = {{0.0, 0.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}, {1.0, 1.0, 1.0}, {1.0, 0.5, 0.0}, {1.0, 0.0, 1.0}, {0.0, 1.0, 1.0}, {0.5, 0.0, 1.0}, {0.0, 0.5, 1.0}, {0.5, 1.0, 0.0}, {1.0, 0.0, 0.5}, {0.0, 1.0, 0.5}, {0.5, 0.5, 0.5}, {0.75, 0.75, 0.75}, {0.5, 1.0, 1.0}, {1.0, 0.5, 1.0}, {1.0, 1.0, 0.5}, {0.5, 1.0, 0.5}, {0.5, 0.5, 1.0}};
 
 std::default_random_engine gen;
-std::uniform_real_distribution<double> distribution(0.0001,0.04);
+std::uniform_real_distribution<double> distribution(0.005, 0.02);
 
 std::vector<std::thread> activeThreads;
+std::vector<std::shared_ptr<ThreadData>> activeHorizontalThreadsData;
 
 void drawVehicle(double x, double y, int color) {
     glPushMatrix();
@@ -44,7 +42,6 @@ void drawVehicle(double x, double y, int color) {
     glPopMatrix();
 }
 
-// Function to initialize OpenGL
 void initOpenGL() {
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -126,9 +123,10 @@ void displayScene() {
     drawVehicle(threadData1.objectPositionX, threadData1.objectPositionY, threadData1.vehicleNumber);
     drawVehicle(threadData2.objectPositionX, threadData2.objectPositionY, threadData2.vehicleNumber);
     drawVehicle(threadData3.objectPositionX, threadData3.objectPositionY, threadData3.vehicleNumber);
-    drawVehicle(threadData4.objectPositionX, threadData4.objectPositionY, threadData4.vehicleNumber);
-    drawVehicle(threadData5.objectPositionX, threadData5.objectPositionY, threadData5.vehicleNumber);
-    drawVehicle(threadData6.objectPositionX, threadData6.objectPositionY, threadData6.vehicleNumber);
+
+    for (const auto& data : activeHorizontalThreadsData) {
+        drawVehicle(data->objectPositionX, data->objectPositionY, data->vehicleNumber);
+    }
 
     glutSwapBuffers();
     glutPostRedisplay();
@@ -164,13 +162,11 @@ void updateVerticalVehicle(ThreadData* threadData) {
     }
 }
 
-void updateHorizontalVehicle(ThreadData* threadData) {
-    std::uniform_int_distribution<int> distribution1(10000, 1500000);
-    usleep(distribution1(gen));
-    double y = -startingPoints[2 * threadData->vehicleNumber], x = -1;
-    amountOfHorizontalThreadsActive++;
+void updateHorizontalVehicle(std::shared_ptr<ThreadData> threadData) {
+    int vehicleNumber = threadData->vehicleNumber % 3;
+    double y = -startingPoints[2 * vehicleNumber], x = -1;
     if (!stop && !windowClosed) {
-        while (x < -startingPoints[2 * threadData->vehicleNumber + 1]) {
+        while (x < -startingPoints[2 * vehicleNumber + 1]) {
             x += threadData->speed;
             usleep(10000);
             threadData->objectPositionX = x;
@@ -179,26 +175,26 @@ void updateHorizontalVehicle(ThreadData* threadData) {
     }
     for (int i = 0; i < 3; i++) {
         if (!stop && !windowClosed) {
-            while (x < path[threadData->vehicleNumber][3] && !stop && !windowClosed) {
+            while (x < path[vehicleNumber][3] && !stop && !windowClosed) {
                 x += threadData->speed;
                 usleep(10000);
                 threadData->objectPositionX = x;
                 threadData->objectPositionY = y;
             }
-            while (y > path[threadData->vehicleNumber][2] && !stop && !windowClosed) {
+            while (y > path[vehicleNumber][2] && !stop && !windowClosed) {
                 y -= threadData->speed;
                 usleep(10000);
                 threadData->objectPositionX = x;
                 threadData->objectPositionY = y;
             }
-            while (x > path[threadData->vehicleNumber][1] && !stop && !windowClosed) {
+            while (x > path[vehicleNumber][1] && !stop && !windowClosed) {
                 x -= threadData->speed;
                 usleep(10000);
                 threadData->objectPositionX = x;
                 threadData->objectPositionY = y;
             }
             if (i != 2) {
-                while (y < path[threadData->vehicleNumber][0] && !stop && !windowClosed) {
+                while (y < path[vehicleNumber][0] && !stop && !windowClosed) {
                     y += threadData->speed;
                     usleep(10000);
                     threadData->objectPositionX = x;
@@ -208,59 +204,42 @@ void updateHorizontalVehicle(ThreadData* threadData) {
         }
     }
     if (!stop && !windowClosed) {
-        while (x >= -1) {
+        while (x >= -1.05) {
             x -= threadData->speed;
             usleep(10000);
             threadData->objectPositionX = x;
             threadData->objectPositionY = y;
         }
     }
-    amountOfHorizontalThreadsActive--;
-
-    // Remove this thread from activeThreads vector
-    auto it = std::find_if(activeThreads.begin(), activeThreads.end(),
-                           [&](std::thread& t) { return t.get_id() == std::this_thread::get_id(); });
-    if (it != activeThreads.end()) {
-        it->detach(); // Detach before erasing
-        activeThreads.erase(it);
-    }
-    vehicleSpawned[threadData->vehicleNumber] = false;
 }
 
 void horizontalVehiclesHandler() {
+    int vehicleCounter = 3; // Counter for assigning unique IDs to horizontal vehicles
+
     while (!stop && !windowClosed) {
-        if (amountOfHorizontalThreadsActive == 3) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            continue;
-        }
+        // Generate a random sleep time between spawns
+        std::uniform_int_distribution<int> sleepDistribution(2000, 7000); // Milliseconds
+        int sleepTime = sleepDistribution(gen);
+        std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
 
-        if (stop || windowClosed) {
-            break;
-        }
+        // Generate a random speed for the vehicle
+        std::uniform_real_distribution<double> speedDistribution(0.005, 0.01);
+        double speed = speedDistribution(gen);
 
-        int index = -1;
-        for (int i = 0; i < 3; ++i) {
-            if (!vehicleSpawned[i]) {
-                index = i;
-                break;
-            }
+        // Dynamically allocate ThreadData for horizontal vehicle
+        auto threadData = std::make_shared<ThreadData>();
+        threadData->speed = speed;
+        threadData->vehicleNumber = vehicleCounter; // Assign unique vehicle ID
+        threadData->objectPositionX = -1;
+        threadData->objectPositionY = -startingPoints[2* (threadData->vehicleNumber)%3 +1];
+        vehicleCounter++;
+        if (vehicleCounter == 20) {
+            vehicleCounter = 0;
         }
-        if (index != -1) {
-            vehicleSpawned[index] = true;
-            ThreadData* threadData = nullptr;
-
-            if (index == 0) {
-                threadData = &threadData4;
-            } else if (index == 1) {
-                threadData = &threadData5;
-            } else if (index == 2) {
-                threadData = &threadData6;
-            }
-
-            threadData->speed = distribution(gen);
-            std::thread horizontal_thread(updateHorizontalVehicle, threadData);
-            activeThreads.push_back(std::move(horizontal_thread));
-        }
+        std::cout << "Spawned new horizontal vehicle: ID " << threadData->vehicleNumber << ", Speed " << speed << std::endl;
+        activeHorizontalThreadsData.push_back(threadData);
+        std::thread horizontal_thread(updateHorizontalVehicle, threadData);
+        activeThreads.push_back(std::move(horizontal_thread));
     }
 }
 
@@ -325,30 +304,15 @@ int main(int argc, char** argv) {
     threadData3.vehicleNumber = 2;
     threadData3.speed = 0.01;
 
-    threadData4.vehicleNumber = 0;
-    threadData4.speed = distribution(gen);
-
-    threadData5.vehicleNumber = 1;
-    threadData5.speed = distribution(gen);
-
-    threadData6.vehicleNumber = 2;
-    threadData6.speed = distribution(gen);
-
     std::thread thread1(updateVerticalVehicle, &threadData1);
     std::thread thread2(updateVerticalVehicle, &threadData2);
     std::thread thread3(updateVerticalVehicle, &threadData3);
     std::thread thread4(horizontalVehiclesHandler);
-    std::thread thread5(updateHorizontalVehicle, &threadData4);
-    std::thread thread6(updateHorizontalVehicle, &threadData5);
-    std::thread thread7(updateHorizontalVehicle, &threadData6);
 
     activeThreads.push_back(std::move(thread1));
     activeThreads.push_back(std::move(thread2));
     activeThreads.push_back(std::move(thread3));
     activeThreads.push_back(std::move(thread4));
-    activeThreads.push_back(std::move(thread5));
-    activeThreads.push_back(std::move(thread6));
-    activeThreads.push_back(std::move(thread7));
 
     glutDisplayFunc(displayScene);
 
