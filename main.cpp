@@ -257,6 +257,7 @@ void stopFunction(unsigned char key, int x, int y) {
 
 void closeWindowFunction() {
     windowClosed = true;
+    stop=true;
     // Join all active threads
     for (auto& thread : activeThreads) {
         if (thread.joinable()) {
@@ -279,7 +280,6 @@ void startingPointRandomizer(ThreadData& threadData) {
 
     threadData.objectPositionX = x;
     threadData.objectPositionY = y;
-    std::cout << threadData.vehicleNumber << " " << threadData.objectPositionX << " " << threadData.objectPositionY << std::endl;
 }
 
 int main(int argc, char** argv) {
@@ -304,15 +304,51 @@ int main(int argc, char** argv) {
     threadData3.vehicleNumber = 2;
     threadData3.speed = 0.01;
 
+    std::shared_ptr<ThreadData> threadData7 = std::make_shared<ThreadData>();
+    std::shared_ptr<ThreadData> threadData6 =  std::make_shared<ThreadData>();
+    std::shared_ptr<ThreadData> threadData5 = std::make_shared<ThreadData>();
+
+    std::uniform_real_distribution<double> speedDistribution(0.005, 0.01);
+    double speed = speedDistribution(gen);
+
+    threadData5->speed = speed;
+    threadData5->vehicleNumber = 0;
+    threadData5->objectPositionX = -1;
+    threadData5->objectPositionY = -startingPoints[2* (threadData5->vehicleNumber) +1];
+
+    speed = speedDistribution(gen);
+    threadData6->speed = speed;
+    threadData6->vehicleNumber = 1;
+    threadData6->objectPositionX = -1;
+    threadData6->objectPositionY = -startingPoints[2* (threadData6->vehicleNumber) +1];
+
+    speed = speedDistribution(gen);
+    threadData7->speed = speed;
+    threadData7->vehicleNumber = 2; // Assign unique vehicle ID
+    threadData7->objectPositionX = -1;
+    threadData7->objectPositionY = -startingPoints[2* (threadData7->vehicleNumber) +1];
+
     std::thread thread1(updateVerticalVehicle, &threadData1);
     std::thread thread2(updateVerticalVehicle, &threadData2);
     std::thread thread3(updateVerticalVehicle, &threadData3);
     std::thread thread4(horizontalVehiclesHandler);
+    std::thread thread5(updateHorizontalVehicle, threadData5);
+    std::thread thread6(updateHorizontalVehicle, threadData6);
+    std::thread thread7(updateHorizontalVehicle, threadData7);
+
+    activeHorizontalThreadsData.push_back(threadData5);
+    activeHorizontalThreadsData.push_back(threadData6);
+    activeHorizontalThreadsData.push_back(threadData7);
+
+// zmienic speed na staly krok a opoznienie jako speed, etap2: na skrzyżowaniach wprowadzic ruch bezkolizyjny, jak cos wjezdza na skrzyzowanie to z drugiego kierunku nie wjedzie
 
     activeThreads.push_back(std::move(thread1));
     activeThreads.push_back(std::move(thread2));
     activeThreads.push_back(std::move(thread3));
     activeThreads.push_back(std::move(thread4));
+    activeThreads.push_back(std::move(thread5));
+    activeThreads.push_back(std::move(thread6));
+    activeThreads.push_back(std::move(thread7));
 
     glutDisplayFunc(displayScene);
 
