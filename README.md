@@ -10,5 +10,3 @@ Each vehicle is a separate thread. Horizontal vehicles threads are ending, after
 Project is created with:
 * C++
 * OpenGL
-	
-## Setup
