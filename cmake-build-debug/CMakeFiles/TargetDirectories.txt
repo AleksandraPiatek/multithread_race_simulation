@@ -1,3 +1,3 @@
-/home/aleksandra/Desktop/so_1/cmake-build-debug/CMakeFiles/so_1.dir
-/home/aleksandra/Desktop/so_1/cmake-build-debug/CMakeFiles/edit_cache.dir
-/home/aleksandra/Desktop/so_1/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/home/aleksandra/Desktop/so_264004/cmake-build-debug/CMakeFiles/so_1.dir
+/home/aleksandra/Desktop/so_264004/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/aleksandra/Desktop/so_264004/cmake-build-debug/CMakeFiles/rebuild_cache.dir

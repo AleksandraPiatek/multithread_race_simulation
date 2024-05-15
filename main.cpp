@@ -6,7 +6,8 @@
 #include <GL/freeglut.h>
 #include <csignal>
 #include <algorithm>
-#include <memory> // For smart pointers
+#include <memory>
+#include <mutex>
 
 struct ThreadData {
     double objectPositionX;
@@ -18,16 +19,17 @@ struct ThreadData {
 ThreadData threadData1, threadData2, threadData3;
 bool stop = false;
 bool windowClosed = false;
-bool vehicleSpawned[3] = {true, true, true};
+float step = 0.0001;
 float startingPoints[6] = {-0.47, 0.77, -0.4, 0.7, -0.37, 0.67};
 float path[3][4] = {{0.47, -0.77, -0.45, 0.75}, {0.4, -0.7, -0.4, 0.7}, {0.37, -0.67, -0.37, 0.67}};
 float colors[20][3] = {{0.0, 0.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}, {1.0, 1.0, 1.0}, {1.0, 0.5, 0.0}, {1.0, 0.0, 1.0}, {0.0, 1.0, 1.0}, {0.5, 0.0, 1.0}, {0.0, 0.5, 1.0}, {0.5, 1.0, 0.0}, {1.0, 0.0, 0.5}, {0.0, 1.0, 0.5}, {0.5, 0.5, 0.5}, {0.75, 0.75, 0.75}, {0.5, 1.0, 1.0}, {1.0, 0.5, 1.0}, {1.0, 1.0, 0.5}, {0.5, 1.0, 0.5}, {0.5, 0.5, 1.0}};
 
 std::default_random_engine gen;
-std::uniform_real_distribution<double> distribution(0.005, 0.02);
 
 std::vector<std::thread> activeThreads;
 std::vector<std::shared_ptr<ThreadData>> activeHorizontalThreadsData;
+
+std::mutex crossroadMutexes[4];
 
 void drawVehicle(double x, double y, int color) {
     glPushMatrix();
@@ -136,26 +138,26 @@ void updateVerticalVehicle(ThreadData* threadData) {
     double x = threadData->objectPositionX, y = threadData->objectPositionY;
     while (!stop && !windowClosed) {
         while (x < path[threadData->vehicleNumber][0] && y > 0.65 && !stop && !windowClosed) {
-            x += threadData->speed;
-            usleep(10000);
+            x += step;
+            usleep(threadData->speed);
             threadData->objectPositionX = x;
             threadData->objectPositionY = y;
         }
         while (y > path[threadData->vehicleNumber][1] && x > 0.35 && !stop && !windowClosed) {
-            y -= threadData->speed;
-            usleep(10000);
+            y -= step;
+            usleep(threadData->speed);
             threadData->objectPositionX = x;
             threadData->objectPositionY = y;
         }
         while (x > path[threadData->vehicleNumber][2] && y < -0.65 && !stop && !windowClosed) {
-            x -= threadData->speed;
-            usleep(10000);
+            x -= step;
+            usleep(threadData->speed);
             threadData->objectPositionX = x;
             threadData->objectPositionY = y;
         }
         while (y < path[threadData->vehicleNumber][3] && x < -0.35 && !stop && !windowClosed) {
-            y += threadData->speed;
-            usleep(10000);
+            y += step;
+            usleep(threadData->speed);
             threadData->objectPositionX = x;
             threadData->objectPositionY = y;
         }
@@ -167,8 +169,8 @@ void updateHorizontalVehicle(std::shared_ptr<ThreadData> threadData) {
     double y = -startingPoints[2 * vehicleNumber], x = -1;
     if (!stop && !windowClosed) {
         while (x < -startingPoints[2 * vehicleNumber + 1]) {
-            x += threadData->speed;
-            usleep(10000);
+            x += step;
+            usleep(threadData->speed);
             threadData->objectPositionX = x;
             threadData->objectPositionY = y;
         }
@@ -176,27 +178,27 @@ void updateHorizontalVehicle(std::shared_ptr<ThreadData> threadData) {
     for (int i = 0; i < 3; i++) {
         if (!stop && !windowClosed) {
             while (x < path[vehicleNumber][3] && !stop && !windowClosed) {
-                x += threadData->speed;
-                usleep(10000);
+                x += step;
+                usleep(threadData->speed);
                 threadData->objectPositionX = x;
                 threadData->objectPositionY = y;
             }
             while (y > path[vehicleNumber][2] && !stop && !windowClosed) {
-                y -= threadData->speed;
-                usleep(10000);
+                y -= step;
+                usleep(threadData->speed);
                 threadData->objectPositionX = x;
                 threadData->objectPositionY = y;
             }
             while (x > path[vehicleNumber][1] && !stop && !windowClosed) {
-                x -= threadData->speed;
-                usleep(10000);
+                x -= step;
+                usleep(threadData->speed);
                 threadData->objectPositionX = x;
                 threadData->objectPositionY = y;
             }
             if (i != 2) {
                 while (y < path[vehicleNumber][0] && !stop && !windowClosed) {
-                    y += threadData->speed;
-                    usleep(10000);
+                    y += step;
+                    usleep(threadData->speed);
                     threadData->objectPositionX = x;
                     threadData->objectPositionY = y;
                 }
@@ -205,8 +207,8 @@ void updateHorizontalVehicle(std::shared_ptr<ThreadData> threadData) {
     }
     if (!stop && !windowClosed) {
         while (x >= -1.05) {
-            x -= threadData->speed;
-            usleep(10000);
+            x -= step;
+            usleep(threadData->speed);
             threadData->objectPositionX = x;
             threadData->objectPositionY = y;
         }
@@ -214,19 +216,19 @@ void updateHorizontalVehicle(std::shared_ptr<ThreadData> threadData) {
 }
 
 void horizontalVehiclesHandler() {
-    int vehicleCounter = 3; // Counter for assigning unique IDs to horizontal vehicles
+    int vehicleCounter = 3;
 
     while (!stop && !windowClosed) {
         // Generate a random sleep time between spawns
-        std::uniform_int_distribution<int> sleepDistribution(2000, 7000); // Milliseconds
+        std::uniform_int_distribution<int> sleepDistribution(2000, 7000);
         int sleepTime = sleepDistribution(gen);
         std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
 
         // Generate a random speed for the vehicle
-        std::uniform_real_distribution<double> speedDistribution(0.005, 0.01);
+        std::uniform_real_distribution<double> speedDistribution(1,200);
         double speed = speedDistribution(gen);
 
-        // Dynamically allocate ThreadData for horizontal vehicle
+
         auto threadData = std::make_shared<ThreadData>();
         threadData->speed = speed;
         threadData->vehicleNumber = vehicleCounter; // Assign unique vehicle ID
@@ -246,7 +248,6 @@ void horizontalVehiclesHandler() {
 void stopFunction(unsigned char key, int x, int y) {
     if (key == ' ') {
         stop = true;
-        // Join all active threads
         for (auto& thread : activeThreads) {
             if (thread.joinable()) {
                 thread.join();
@@ -258,7 +259,6 @@ void stopFunction(unsigned char key, int x, int y) {
 void closeWindowFunction() {
     windowClosed = true;
     stop=true;
-    // Join all active threads
     for (auto& thread : activeThreads) {
         if (thread.joinable()) {
             thread.join();
@@ -294,21 +294,21 @@ int main(int argc, char** argv) {
 
     startingPointRandomizer(threadData1);
     threadData1.vehicleNumber = 0;
-    threadData1.speed = 0.01;
+    threadData1.speed = 70;
 
     startingPointRandomizer(threadData2);
     threadData2.vehicleNumber = 1;
-    threadData2.speed = 0.01;
+    threadData2.speed = 70;
 
     startingPointRandomizer(threadData3);
     threadData3.vehicleNumber = 2;
-    threadData3.speed = 0.01;
+    threadData3.speed = 70;
 
     std::shared_ptr<ThreadData> threadData7 = std::make_shared<ThreadData>();
     std::shared_ptr<ThreadData> threadData6 =  std::make_shared<ThreadData>();
     std::shared_ptr<ThreadData> threadData5 = std::make_shared<ThreadData>();
 
-    std::uniform_real_distribution<double> speedDistribution(0.005, 0.01);
+    std::uniform_real_distribution<double> speedDistribution(1, 200);
     double speed = speedDistribution(gen);
 
     threadData5->speed = speed;
@@ -324,7 +324,7 @@ int main(int argc, char** argv) {
 
     speed = speedDistribution(gen);
     threadData7->speed = speed;
-    threadData7->vehicleNumber = 2; // Assign unique vehicle ID
+    threadData7->vehicleNumber = 2;
     threadData7->objectPositionX = -1;
     threadData7->objectPositionY = -startingPoints[2* (threadData7->vehicleNumber) +1];
 
@@ -339,8 +339,6 @@ int main(int argc, char** argv) {
     activeHorizontalThreadsData.push_back(threadData5);
     activeHorizontalThreadsData.push_back(threadData6);
     activeHorizontalThreadsData.push_back(threadData7);
-
-// zmienic speed na staly krok a opoznienie jako speed, etap2: na skrzyżowaniach wprowadzic ruch bezkolizyjny, jak cos wjezdza na skrzyzowanie to z drugiego kierunku nie wjedzie
 
     activeThreads.push_back(std::move(thread1));
     activeThreads.push_back(std::move(thread2));
