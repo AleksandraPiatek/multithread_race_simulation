@@ -210,12 +210,12 @@ void updateHorizontalVehicle(std::shared_ptr<ThreadData> threadData) {
                 else if (x>=-0.5 && x<=-0.35) {
                     crossroadMutexes[3].try_lock(); //skrzyżowanie 1!
                 }
-//                else if () {
-//                   // crossroadMutexes[2].unlock();
-//                }
-//                else if(){
-//                   // crossroadMutexes[1].unlock();
-//                }
+                else if (x>=0.501 && x<=0.5012) {
+                    crossroadMutexes[1].unlock();
+                }
+                else if(x<=-0.3495 && x>=-0.3497){
+                    crossroadMutexes[3].unlock();
+                }
                 x += step;
                 usleep(threadData->speed);
                 threadData->objectPositionX = x;
@@ -233,6 +233,12 @@ void updateHorizontalVehicle(std::shared_ptr<ThreadData> threadData) {
                 }
                 else if (x>=-0.5 && x<=-0.35) {
                     crossroadMutexes[0].try_lock(); //skrzyżowanie 4!
+                }
+                else if (x>=0.3495 && x<=0.3497) {
+                    crossroadMutexes[2].unlock();
+                }
+                else if(x<=-0.501 && x>=-0.5012){
+                    crossroadMutexes[0].unlock();
                 }
                 x -= step;
                 usleep(threadData->speed);
