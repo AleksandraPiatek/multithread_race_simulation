@@ -154,7 +154,6 @@ void updateVerticalVehicle(ThreadData* threadData) {
             }
             else if (y <= -0.5 && y >= -0.5002) {
                 crossroadMutexes[2].unlock();
-                std::cout << "Unlocked mutex for crossroad 4" << std::endl;
             }
             else if(y<=0.3 && y>=0.2998){
                 crossroadMutexes[1].unlock();
@@ -179,7 +178,6 @@ void updateVerticalVehicle(ThreadData* threadData) {
             }
             else if (y >= -0.2999 && y <= -0.2997) {
                 crossroadMutexes[0].unlock();
-                std::cout << "Unlocked mutex for crossroad 4" << std::endl;
             }
             else if(y>=0.5 && y<=0.5002){
                 crossroadMutexes[3].unlock();
@@ -195,8 +193,6 @@ void updateVerticalVehicle(ThreadData* threadData) {
 void updateHorizontalVehicle(std::shared_ptr<ThreadData> threadData) {
     int vehicleNumber = threadData->vehicleNumber % 3;
     double y = -startingPoints[2 * vehicleNumber], x = -1;
-
-
     if (!stop && !windowClosed) {
         while (x < -startingPoints[2 * vehicleNumber + 1]) {
             x += step;
@@ -206,21 +202,6 @@ void updateHorizontalVehicle(std::shared_ptr<ThreadData> threadData) {
         }
     }
     for (int i = 0; i < 3; i++) {
-        bool crossroadClear = true;
-        for (auto & crossroadMutex : crossroadMutexes) {
-            if (crossroadMutex.try_lock()) {
-                crossroadMutex.unlock(); // Release the lock immediately
-            } else {
-                crossroadClear = false; // Crossroad is not clear, set flag to false
-                break;
-            }
-        }
-
-        // If the crossroad is not clear, wait
-        if (!crossroadClear) {
-            usleep(100000); // Wait for a short time before re-checking
-            continue;
-        }
         if (!stop && !windowClosed) {
             while (x < path[vehicleNumber][3] && !stop && !windowClosed) {
                 x += step;
