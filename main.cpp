@@ -147,12 +147,17 @@ void updateVerticalVehicle(ThreadData* threadData) {
         }
         while (y > path[threadData->vehicleNumber][1] && x > 0.35 && !stop && !windowClosed) {
             if (y >= 0.3 && y <= 0.5) {
-                crossroadMutexes[1].try_lock(); //krzyżowanie nr 2!!!!
-               // std::cout << "Locked mutex for crossroad 2" << std::endl;
+                crossroadMutexes[1].try_lock(); //skrzyżowanie nr 2!!!!
             }
-            if (y <= -0.3 && y >= -0.5) {
+            else if (y <= -0.3 && y >= -0.5) {
                 crossroadMutexes[2].try_lock(); //skrzyżowanie 3!
-                std::cout << "Locked mutex for crossroad 3" << std::endl;
+            }
+            else if (y <= -0.5 && y >= -0.5002) {
+                crossroadMutexes[2].unlock();
+                std::cout << "Unlocked mutex for crossroad 4" << std::endl;
+            }
+            else if(y<=0.3 && y>=0.2998){
+                crossroadMutexes[1].unlock();
             }
             y -= step;
             usleep(threadData->speed);
@@ -168,32 +173,21 @@ void updateVerticalVehicle(ThreadData* threadData) {
         while (y < path[threadData->vehicleNumber][3] && x < -0.35 && !stop && !windowClosed) {
             if (y >= 0.3 && y <= 0.5) {  //skrzyżowanie nr 1!!!
                 crossroadMutexes[3].try_lock();
-               // std::cout << "Locked mutex for crossroad 4" << std::endl;
             }
-            if (y <= -0.3 && y >= -0.5) {
+             else if (y <= -0.3 && y >= -0.5) {
                 crossroadMutexes[0].try_lock(); //skrzyzowanie nr 4
-                //std::cout << "Locked mutex for crossroad 1" << std::endl;
+            }
+            else if (y >= -0.2999 && y <= -0.2997) {
+                crossroadMutexes[0].unlock();
+                std::cout << "Unlocked mutex for crossroad 4" << std::endl;
+            }
+            else if(y>=0.5 && y<=0.5002){
+                crossroadMutexes[3].unlock();
             }
             y += step;
             usleep(threadData->speed);
             threadData->objectPositionX = x;
             threadData->objectPositionY = y;
-        }
-
-
-        // Unlock the mutex after moving away from the crossroad
-        if (y >= 0.55 && y <= 0.75) {
-            crossroadMutexes[0].unlock();
-            std::cout << "Unlocked mutex for crossroad 1" << std::endl;
-        } else if (y >= -0.75 && y <= -0.55) {
-            crossroadMutexes[1].unlock();
-            std::cout << "Unlocked mutex for crossroad 2" << std::endl;
-        } else if (y >= -0.25 && y <= -0.05) {
-            crossroadMutexes[2].unlock();
-            std::cout << "Unlocked mutex for crossroad 3" << std::endl;
-        } else if (y >= 0.05 && y <= 0.25) {
-            crossroadMutexes[3].unlock();
-            std::cout << "Unlocked mutex for crossroad 4" << std::endl;
         }
     }
 }
