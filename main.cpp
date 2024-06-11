@@ -204,6 +204,18 @@ void updateHorizontalVehicle(std::shared_ptr<ThreadData> threadData) {
     for (int i = 0; i < 3; i++) {
         if (!stop && !windowClosed) {
             while (x < path[vehicleNumber][3] && !stop && !windowClosed) {
+                if (x<=0.5 && x>=0.35) {
+                    crossroadMutexes[1].try_lock(); //skrzyżowanie nr 2!!!!
+                }
+                else if (x>=-0.5 && x<=-0.35) {
+                    crossroadMutexes[3].try_lock(); //skrzyżowanie 1!
+                }
+//                else if () {
+//                   // crossroadMutexes[2].unlock();
+//                }
+//                else if(){
+//                   // crossroadMutexes[1].unlock();
+//                }
                 x += step;
                 usleep(threadData->speed);
                 threadData->objectPositionX = x;
@@ -216,6 +228,12 @@ void updateHorizontalVehicle(std::shared_ptr<ThreadData> threadData) {
                 threadData->objectPositionY = y;
             }
             while (x > path[vehicleNumber][1] && !stop && !windowClosed) {
+                if (x<=0.5 && x>=0.35) {
+                    crossroadMutexes[2].try_lock(); //skrzyżowanie nr 3!!!!
+                }
+                else if (x>=-0.5 && x<=-0.35) {
+                    crossroadMutexes[0].try_lock(); //skrzyżowanie 4!
+                }
                 x -= step;
                 usleep(threadData->speed);
                 threadData->objectPositionX = x;
@@ -247,7 +265,7 @@ void horizontalVehiclesHandler() {
 
     while (!stop && !windowClosed) {
         // Generate a random sleep time between spawns
-        std::uniform_int_distribution<int> sleepDistribution(2000, 7000);
+        std::uniform_int_distribution<int> sleepDistribution(5000, 7000);
         int sleepTime = sleepDistribution(gen);
         std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
 
