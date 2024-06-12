@@ -37,6 +37,11 @@ std::mutex crossroadHorizontalMutexes[4];
 std::mutex cvMutex;
 std::condition_variable cv;
 
+void notifyOnUnlock() {
+    std::unique_lock<std::mutex> lock(cvMutex);
+    cv.notify_all();
+}
+
 void drawVehicle(double x, double y, int color) {
     glPushMatrix();
     glTranslatef(x, y, 0.0f);
@@ -167,16 +172,31 @@ void updateVerticalVehicle(ThreadData* threadData) {
         }
         while (y > path[threadData->vehicleNumber][1] && x > 0.35 && !stop && !windowClosed) {
             if (y >= 0.3 && y <= 0.5) {
-                crossroadVerticalMutexes[1].try_lock(); //skrzyżowanie nr 2!!!!
+                if(isMutexLocked(crossroadHorizontalMutexes[1])){
+                    std::unique_lock<std::mutex> lock(cvMutex);
+                    cv.wait(lock, [] { return !isMutexLocked(crossroadHorizontalMutexes[1]); });
+                }
+                else{
+                    crossroadVerticalMutexes[1].try_lock(); //skrzyżowanie nr 2!!!!
+                }
             }
             else if (y <= -0.3 && y >= -0.5) {
-                crossroadVerticalMutexes[2].try_lock(); //skrzyżowanie 3!
+                if(isMutexLocked(crossroadHorizontalMutexes[2])){
+                    std::unique_lock<std::mutex> lock(cvMutex);
+                    cv.wait(lock, [] { return !isMutexLocked(crossroadHorizontalMutexes[2]); });
+                }
+                else{
+                    crossroadVerticalMutexes[2].try_lock(); //skrzyżowanie nr 3!!!
+                }
             }
             else if (y <= -0.5 && y >= -0.5002) {
                 crossroadVerticalMutexes[2].unlock();
+                notifyOnUnlock();
             }
             else if(y<=0.3 && y>=0.2998){
                 crossroadVerticalMutexes[1].unlock();
+                notifyOnUnlock();
+
             }
             y -= step;
             usleep(threadData->speed);
@@ -191,16 +211,30 @@ void updateVerticalVehicle(ThreadData* threadData) {
         }
         while (y < path[threadData->vehicleNumber][3] && x < -0.35 && !stop && !windowClosed) {
             if (y >= 0.3 && y <= 0.5) {  //skrzyżowanie nr 1!!!
-                crossroadVerticalMutexes[3].try_lock();
+                if(isMutexLocked(crossroadHorizontalMutexes[3])){
+                    std::unique_lock<std::mutex> lock(cvMutex);
+                    cv.wait(lock, [] { return !isMutexLocked(crossroadHorizontalMutexes[3]); });
+                }
+                else{
+                    crossroadVerticalMutexes[3].try_lock(); //skrzyżowanie nr 2!!!!
+                }
             }
              else if (y <= -0.3 && y >= -0.5) {
-                crossroadVerticalMutexes[0].try_lock(); //skrzyzowanie nr 4
+                if(isMutexLocked(crossroadHorizontalMutexes[0])){
+                    std::unique_lock<std::mutex> lock(cvMutex);
+                    cv.wait(lock, [] { return !isMutexLocked(crossroadHorizontalMutexes[0]); });
+                }
+                else{
+                    crossroadVerticalMutexes[0].try_lock(); //skrzyżowanie nr 4!!!
+                }
             }
             else if (y >= -0.2999 && y <= -0.2997) {
                 crossroadVerticalMutexes[0].unlock();
+                notifyOnUnlock();
             }
             else if(y>=0.5 && y<=0.5002){
                 crossroadVerticalMutexes[3].unlock();
+                notifyOnUnlock();
             }
             y += step;
             usleep(threadData->speed);
@@ -226,20 +260,30 @@ void updateHorizontalVehicle(std::shared_ptr<ThreadData> threadData) {
             while (x < path[vehicleNumber][3] && !stop && !windowClosed) {
                 if (x<=0.5 && x>=0.35) {
                     if(isMutexLocked(crossroadVerticalMutexes[1])){
-
+                        std::unique_lock<std::mutex> lock(cvMutex);
+                        cv.wait(lock, [] { return !isMutexLocked(crossroadVerticalMutexes[1]); });
                     }
                     else{
                         crossroadHorizontalMutexes[1].try_lock(); //skrzyżowanie nr 2!!!!
                     }
                 }
                 else if (x>=-0.5 && x<=-0.35) {
-                    crossroadHorizontalMutexes[3].try_lock(); //skrzyżowanie 1!
+                    if(isMutexLocked(crossroadVerticalMutexes[3])){
+                        std::unique_lock<std::mutex> lock(cvMutex);
+                        cv.wait(lock, [] { return !isMutexLocked(crossroadVerticalMutexes[3]); });
+                    }
+                    else{
+                        crossroadHorizontalMutexes[3].try_lock(); //skrzyżowanie nr 1!!!!
+                    }
                 }
                 else if (x>=0.501 && x<=0.5012) {
+
                     crossroadHorizontalMutexes[1].unlock();
+                    notifyOnUnlock();
                 }
                 else if(x<=-0.3495 && x>=-0.3497){
                     crossroadHorizontalMutexes[3].unlock();
+                    notifyOnUnlock();
                 }
                 x += step;
                 usleep(threadData->speed);
@@ -254,16 +298,30 @@ void updateHorizontalVehicle(std::shared_ptr<ThreadData> threadData) {
             }
             while (x > path[vehicleNumber][1] && !stop && !windowClosed) {
                 if (x<=0.5 && x>=0.35) {
-                    crossroadHorizontalMutexes[2].try_lock(); //skrzyżowanie nr 3!!!!
+                    if(isMutexLocked(crossroadVerticalMutexes[2])){
+                        std::unique_lock<std::mutex> lock(cvMutex);
+                        cv.wait(lock, [] { return !isMutexLocked(crossroadVerticalMutexes[2]); });
+                    }
+                    else{
+                        crossroadHorizontalMutexes[2].try_lock(); //skrzyżowanie nr 3!!!!
+                    }
                 }
                 else if (x>=-0.5 && x<=-0.35) {
-                    crossroadHorizontalMutexes[0].try_lock(); //skrzyżowanie 4!
+                    if(isMutexLocked(crossroadVerticalMutexes[0])){
+                        std::unique_lock<std::mutex> lock(cvMutex);
+                        cv.wait(lock, [] { return !isMutexLocked(crossroadVerticalMutexes[0]); });
+                    }
+                    else{
+                        crossroadHorizontalMutexes[0].try_lock(); //skrzyżowanie nr 4!!!!
+                    }
                 }
                 else if (x>=0.3495 && x<=0.3497) {
                     crossroadHorizontalMutexes[2].unlock();
+                    notifyOnUnlock();
                 }
                 else if(x<=-0.501 && x>=-0.5012){
                     crossroadHorizontalMutexes[0].unlock();
+                    notifyOnUnlock();
                 }
                 x -= step;
                 usleep(threadData->speed);
@@ -296,7 +354,7 @@ void horizontalVehiclesHandler() {
 
     while (!stop && !windowClosed) {
         // Generate a random sleep time between spawns
-        std::uniform_int_distribution<int> sleepDistribution(5000, 7000);
+        std::uniform_int_distribution<int> sleepDistribution(2000, 3000);
         int sleepTime = sleepDistribution(gen);
         std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
 
